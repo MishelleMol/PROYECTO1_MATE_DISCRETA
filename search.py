@@ -1,44 +1,72 @@
 from pathlib import Path
 
-class Analyzer:
+
+def size_even(file: Path) -> bool:
+    return file.is_file() and file.stat().st_size % 2 == 0
+
+def has_all_vowels(file: Path) -> bool:
+    if not file.is_file():
+        return False
+    name = file.stem.lower()
+    return all(v in name for v in "aeiou")
+
+def very_small(file: Path) -> bool:
+    return file.is_file() and file.stat().st_size < 1024 
+
+def by_extension(ext: str):
+    ext = ext.lower().lstrip(".")
+    def _pred(file: Path) -> bool:
+        return file.is_file() and file.suffix.lower().lstrip(".") == ext
+    return _pred
+
+
+class FileSearcher:
     def __init__(self, root: Path):
         self.root = Path(root)
 
-    def properties(self):
-        dirs = 0
-        files = 0
-        max_depth = 0
-        total_children = 0
-        counted_dirs = 0
-
-        def walk(path: Path, depth: int):
-            nonlocal dirs, files, max_depth, total_children, counted_dirs
-            max_depth = max(max_depth, depth)
+    def find(self, predicate):
+        def walk(path: Path):
             try:
                 entries = list(path.iterdir())
             except PermissionError:
                 entries = []
-            dirs += 1
-            child_count = 0
             for e in entries:
+                if e.is_file() and predicate(e):
+                    yield e
                 if e.is_dir():
-                    child_count += 1
-                elif e.is_file():
-                    child_count += 1
-                    files += 1
-            total_children += child_count
-            counted_dirs += 1
-            for e in entries:
-                if e.is_dir():
-                    walk(e, depth + 1)
+                    yield from walk(e)
+        return walk(self.root)
 
-        walk(self.root, 0)
-        nodes = dirs + files
-        avg_branching = (total_children / counted_dirs) if counted_dirs else 0.0
-        return {
-            "nodes": nodes,
-            "dirs": dirs,
-            "files": files,
-            "max_depth": max_depth,
-            "avg_branching": avg_branching,
-        }
+
+def criteria_menu():
+    print("\nCRITERIOS DE BÚSQUEDA")
+    print(" 1. Archivos con tamaño par (bytes)")
+    print(" 2. Archivos con todas las vocales (en el nombre)")
+    print(" 3. Archivos muy pequeños (< 1 KB)")
+    print(" 4. Archivos por extensión personalizada")
+    print(" 5. Volver al menú principal")
+
+    while True:
+        raw = input("\nElige una opción (1-5): ").strip()
+        try:
+            opt = int(raw)
+        except ValueError:
+            print(" Ingresa un número del 1 al 5.")
+            continue
+
+        if opt == 1:
+            return size_even, "tamaño par"
+        if opt == 2:
+            return has_all_vowels, "nombre con todas las vocales"
+        if opt == 3:
+            return very_small, "muy pequeños (<1 KB)"
+        if opt == 4:
+            ext = input("Ingrese la extensión (ej. py, txt, pdf): ").strip()
+            if not ext:
+                print(" Extensión vacía, intenta de nuevo.")
+                continue
+            return by_extension(ext), f"extensión .{ext.lstrip('.')}"
+        if opt == 5:
+            return None, None
+
+        print(" Opción fuera de rango.")
