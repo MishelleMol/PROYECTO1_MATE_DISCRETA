@@ -1,44 +1,44 @@
-from pathlib import Path
+import os
 
 
-def size_even(file: Path) -> bool:
-    return file.is_file() and file.stat().st_size % 2 == 0
 
-def has_all_vowels(file: Path) -> bool:
-    if not file.is_file():
+def size_even(file_path): #esta función de primer verifica  si file_path es un archivo. 
+    return os.path.isfile(file_path) and (os.path.getsize(file_path) % 2 == 0)#Si es archivo revisa si su tamaño en bytes es par.
+
+def has_all_vowels(file_path): 
+    if not os.path.isfile(file_path):#revisa si es un archivo
         return False
-    name = file.stem.lower()
-    return all(v in name for v in "aeiou")
+    name, _ = os.path.splitext(os.path.basename(file_path)) #se queda solo con el nombre del archivo, sin extensión
+    name = name.lower()
+    for v in "aeiou": #Verifica si ese nombre tiene todas las vocales 
+        if v not in name:
+            return False #Si le falta alguna vocal devuelve False
+    return True
 
-def very_small(file: Path) -> bool:
-    return file.is_file() and file.stat().st_size < 1024 
+def very_small(file_path): #Esta función devuelve True si el archivo pena menos de 1024 bytes (1KB)
+    return os.path.isfile(file_path) and os.path.getsize(file_path) < 1024
 
-def by_extension(ext: str):
+def by_extension(ext): #Esta es una función que devuelve otra función.
     ext = ext.lower().lstrip(".")
-    def _pred(file: Path) -> bool:
-        return file.is_file() and file.suffix.lower().lstrip(".") == ext
+    def _pred(file_path):
+        return os.path.isfile(file_path) and os.path.splitext(file_path)[1].lower().lstrip(".") == ext
     return _pred
 
-
 class FileSearcher:
-    def __init__(self, root: Path):
-        self.root = Path(root)
 
-    def find(self, predicate):
-        def walk(path: Path):
-            try:
-                entries = list(path.iterdir())
-            except PermissionError:
-                entries = []
-            for e in entries:
-                if e.is_file() and predicate(e):
-                    yield e
-                if e.is_dir():
-                    yield from walk(e)
-        return walk(self.root)
+    def __init__(self, root):
+        self.root = os.path.abspath(root)
 
+    def find(self, predicate): #predicate es una función que define el criterio de búsqueda
+        for dirpath, dirnames, filenames in os.walk(self.root): #os.walk es para explorar todas las carpetas y subcarpetas desde la raíz (root)
+            for fname in filenames:
+                full = os.path.join(dirpath, fname)
+                if predicate(full):
+                    yield full #yield genera resultados uno por uno 
 
-def criteria_menu():
+#Menú de criterios 
+
+def criteria_menu(): #Esta función muestra opciones al usuario
     print("\nCRITERIOS DE BÚSQUEDA")
     print(" 1. Archivos con tamaño par (bytes)")
     print(" 2. Archivos con todas las vocales (en el nombre)")
